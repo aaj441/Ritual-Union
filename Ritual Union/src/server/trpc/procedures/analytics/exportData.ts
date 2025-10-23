@@ -170,9 +170,9 @@ export const exportData = baseProcedure
         ["Date", "Time", "Ritual", "Type", "Duration (min)", "Completed", "HRV Start", "HRV End", "Heart Rate", "Rating"].join(","),
         ...sessions.map(s => [
           s.startedAt.toISOString().split('T')[0],
-          s.startedAt.toISOString().split('T')[1].split('.')[0],
-          `"${s.ritual.name}"`,
-          s.ritual.type,
+          s.startedAt.toISOString().split('T')[1]?.split('.')[0] || '',
+          `"${s.ritual?.name || 'Unknown'}"`,
+          s.ritual?.type || 'Unknown',
           s.actualDuration || 0,
           s.completed ? "Yes" : "No",
           s.hrvStart || "",

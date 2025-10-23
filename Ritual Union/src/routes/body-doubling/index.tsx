@@ -38,7 +38,7 @@ function BodyDoublingContent() {
     trpc.createBodyDoublingSession.mutationOptions({
       onSuccess: (data) => {
         toast.success("Session created!");
-        navigate({ to: "/body-doubling/$sessionId", params: { sessionId: String(data.session.id) } });
+        navigate({ to: "/body-doubling" });
       },
       onError: (error) => {
         toast.error(error.message || "Failed to create session");
@@ -50,7 +50,7 @@ function BodyDoublingContent() {
     trpc.joinBodyDoublingSession.mutationOptions({
       onSuccess: (_, variables) => {
         toast.success("Joined session!");
-        navigate({ to: "/body-doubling/$sessionId", params: { sessionId: String(variables.sessionId) } });
+        navigate({ to: "/body-doubling" });
       },
       onError: (error) => {
         toast.error(error.message || "Failed to join session");

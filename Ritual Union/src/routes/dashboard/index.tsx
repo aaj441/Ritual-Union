@@ -135,7 +135,7 @@ function DashboardContent() {
           <div className="absolute right-4 top-16 z-50 w-48 rounded-xl border border-ritual-indigo bg-ritual-charcoal-light shadow-2xl">
             <div className="p-2">
               <button
-                onClick={() => navigate({ to: "/profile" })}
+                onClick={() => navigate({ to: "/settings" })}
                 className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-left text-gray-300 transition-colors hover:bg-ritual-indigo/20 hover:text-ritual-gold"
               >
                 <User className="h-4 w-4" />

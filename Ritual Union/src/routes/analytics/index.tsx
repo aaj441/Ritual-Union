@@ -43,7 +43,7 @@ function AnalyticsContent() {
           URL.revokeObjectURL(url);
           toast.success("Data exported as JSON!");
         } else {
-          const blob = new Blob([data.data], { type: "text/csv" });
+          const blob = new Blob([String(data.data)], { type: "text/csv" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;

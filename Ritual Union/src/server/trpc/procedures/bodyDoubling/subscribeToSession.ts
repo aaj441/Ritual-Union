@@ -74,7 +74,10 @@ export const subscribeToSession = baseProcedure
 
       // Check if there are new messages
       if (session.messages.length > 0) {
-        lastMessageId = session.messages[session.messages.length - 1].id;
+        const lastMessage = session.messages[session.messages.length - 1];
+        if (lastMessage) {
+          lastMessageId = lastMessage.id;
+        }
       }
 
       // Check if participants have updated

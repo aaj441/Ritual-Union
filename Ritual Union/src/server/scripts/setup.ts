@@ -257,13 +257,16 @@ async function setup() {
       );
       
       for (let i = 0; i < natureScapes.length; i++) {
-        await db.soundscapePackItem.create({
-          data: {
-            packId: naturePack.id,
-            soundscapeId: natureScapes[i].id,
-            orderIndex: i,
-          },
-        });
+        const soundscape = natureScapes[i];
+        if (soundscape) {
+          await db.soundscapePackItem.create({
+            data: {
+              packId: naturePack.id,
+              soundscapeId: soundscape.id,
+              orderIndex: i,
+            },
+          });
+        }
       }
 
       console.log("Seeded soundscape packs");

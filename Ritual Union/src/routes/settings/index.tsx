@@ -410,12 +410,12 @@ function SettingsContent() {
               <ToggleSetting
                 label="Health Data Collection"
                 description="Allow Ritual Engine to sync and analyze health data for adaptive features"
-                enabled={profileQuery.data?.user.healthDataConsent || false}
+                enabled={profileQuery.data?.healthDataConsent || false}
                 onChange={handleHealthConsentToggle}
               />
             </div>
 
-            {profileQuery.data?.user.healthDataConsent && (
+            {profileQuery.data?.healthDataConsent && (
               <div className="rounded-2xl bg-ritual-charcoal-light p-6">
                 <h2 className="mb-4 font-rounded text-xl font-semibold text-white">
                   Connected Sources
