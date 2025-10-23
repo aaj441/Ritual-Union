@@ -1,0 +1,497 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:postgres@postgres/app"
+}
+
+model User {
+  id                  Int              @id @default(autoincrement())
+  email               String           @unique
+  passwordHash        String
+  name                String
+  timezone            String           @default("UTC")
+  healthDataConsent   Boolean          @default(false)
+  subscriptionTier    String           @default("free") // free, flow, deep, master
+  createdAt           DateTime         @default(now())
+  
+  adhdProfile         ADHDProfile?
+  subscription        Subscription?
+  rituals             Ritual[]
+  focusSessions       FocusSession[]
+  healthSnapshots     HealthSnapshot[]
+  insights            Insight[]
+  payments            Payment[]
+  promoRedemptions    PromoRedemption[]
+  referralsMade       Referral[]       @relation("ReferralsMade")
+  referralsReceived   Referral[]       @relation("ReferralsReceived")
+  packPurchases       PackPurchase[]
+  organizationMembers OrganizationMember[]
+  teamMembers         TeamMember[]
+  teamSessionParticipants TeamSessionParticipant[]
+  bodyDoublingParticipants BodyDoublingParticipant[]
+  bodyDoublingMessages BodyDoublingMessage[]
+  achievements        UserAchievement[]
+  auditLogs           AuditLog[]
+  calendarIntegrations CalendarIntegration[]
+}
+
+model Subscription {
+  id                  Int       @id @default(autoincrement())
+  userId              Int       @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  stripeCustomerId    String    @unique
+  stripeSubscriptionId String?  @unique
+  stripePriceId       String?
+  tier                String    // free, flow, deep, master
+  status              String    // active, canceled, past_due, incomplete
+  currentPeriodStart  DateTime?
+  currentPeriodEnd    DateTime?
+  cancelAtPeriodEnd   Boolean   @default(false)
+  
+  createdAt           DateTime  @default(now())
+}
+
+model Payment {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  stripePaymentId     String   @unique
+  amount              Int      // in cents
+  currency            String   @default("usd")
+  status              String   // succeeded, pending, failed
+  type                String   // subscription, one_time, pack_purchase
+  description         String?
+  
+  createdAt           DateTime @default(now())
+}
+
+model PromoCode {
+  id                  Int      @id @default(autoincrement())
+  code                String   @unique
+  discountType        String   // percentage, fixed_amount
+  discountValue       Int      // percentage (0-100) or cents
+  maxUses             Int?
+  usedCount           Int      @default(0)
+  expiresAt           DateTime?
+  isActive            Boolean  @default(true)
+  
+  createdAt           DateTime @default(now())
+  redemptions         PromoRedemption[]
+}
+
+model PromoRedemption {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCodeId         Int
+  promoCode           PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  
+  redeemedAt          DateTime @default(now())
+}
+
+model Referral {
+  id                  Int      @id @default(autoincrement())
+  referrerId          Int
+  referrer            User     @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId          Int?
+  referred            User?    @relation("ReferralsReceived", fields: [referredId], references: [id], onDelete: Cascade)
+  
+  code                String   @unique
+  status              String   // pending, completed, rewarded
+  rewardType          String?  // discount, credit, free_month
+  rewardValue         Int?     // in cents or days
+  
+  createdAt           DateTime @default(now())
+  completedAt         DateTime?
+}
+
+model ADHDProfile {
+  id                  Int      @id @default(autoincrement())
+  userId              Int      @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  diagnosisStatus     String   // diagnosed, self_identified, exploring
+  primaryChallenges   String[] // task_initiation, hyperfocus, etc.
+  accommodations      String[] // extra_transition_time, etc.
+  triggerWarnings     String[] // sensitive topics to avoid
+  
+  createdAt           DateTime @default(now())
+}
+
+model Ritual {
+  id                  Int            @id @default(autoincrement())
+  userId              Int
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name                String
+  type                String         // focus, break, reflection, custom
+  duration            Int            // minutes
+  soundscapeId        Int?
+  soundscape          Soundscape?    @relation(fields: [soundscapeId], references: [id])
+  voiceGuidance       Boolean        @default(false)
+  healthAdaptive      Boolean        @default(false)
+  scheduleEnabled     Boolean        @default(false)
+  scheduleCron        String?        // cron expression
+  orderIndex          Int            @default(0)
+  
+  createdAt           DateTime       @default(now())
+  focusSessions       FocusSession[]
+}
+
+model FocusSession {
+  id                  Int       @id @default(autoincrement())
+  userId              Int
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ritualId            Int
+  ritual              Ritual    @relation(fields: [ritualId], references: [id], onDelete: Cascade)
+  
+  startedAt           DateTime  @default(now())
+  endedAt             DateTime?
+  plannedDuration     Int       // minutes
+  actualDuration      Int?      // minutes
+  completed           Boolean   @default(false)
+  
+  // Biometric data
+  hrvStart            Float?
+  hrvEnd              Float?
+  avgHeartRate        Float?
+  sleepQualityPrior   Float?
+  
+  userRating          Int?      // 1-5
+}
+
+model HealthSnapshot {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  timestamp           DateTime @default(now())
+  source              String   // apple_health, android_health, manual
+  
+  hrv                 Float?
+  sleepDuration       Float?   // hours
+  sleepQuality        Float?   // 0-100
+  activeEnergy        Float?   // calories
+  mindfulMinutes      Int?
+  steps               Int?
+}
+
+model Soundscape {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  category            String
+  isPremium           Boolean  @default(false)
+  audioUrl            String
+  duration            Int      // seconds
+  artist              String?
+  culturalOrigin      String?
+  tags                String[]
+  
+  createdAt           DateTime @default(now())
+  rituals             Ritual[]
+  packItems           SoundscapePackItem[]
+}
+
+model SoundscapePack {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  description         String
+  price               Int      // in cents
+  isPremium           Boolean  @default(true)
+  imageUrl            String?
+  
+  createdAt           DateTime @default(now())
+  soundscapes         SoundscapePackItem[]
+  purchases           PackPurchase[]
+}
+
+model SoundscapePackItem {
+  id                  Int      @id @default(autoincrement())
+  packId              Int
+  pack                SoundscapePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  soundscapeId        Int
+  soundscape          Soundscape @relation(fields: [soundscapeId], references: [id], onDelete: Cascade)
+  
+  orderIndex          Int      @default(0)
+}
+
+model VoiceTrack {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  description         String?
+  audioUrl            String
+  duration            Int      // seconds
+  script              String?
+  tone                String   // calm, energetic, neutral
+  accent              String?  // american, british, neutral
+  isPremium           Boolean  @default(false)
+  category            String   // meditation, focus, break, reflection
+  
+  createdAt           DateTime @default(now())
+}
+
+model PackPurchase {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packId              Int
+  pack                SoundscapePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  
+  purchasedAt         DateTime @default(now())
+  price               Int      // in cents
+}
+
+model Insight {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type                String   // pattern, recommendation, celebration
+  title               String
+  description         String
+  generatedAt         DateTime @default(now())
+  dismissed           Boolean  @default(false)
+}
+
+model Organization {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  slug                String   @unique
+  
+  createdAt           DateTime @default(now())
+  teams               Team[]
+  members             OrganizationMember[]
+}
+
+model OrganizationMember {
+  id                  Int      @id @default(autoincrement())
+  organizationId      Int
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role                String   // owner, admin, member
+  joinedAt            DateTime @default(now())
+  
+  @@unique([organizationId, userId])
+}
+
+model Team {
+  id                  Int      @id @default(autoincrement())
+  organizationId      Int?
+  organization        Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                String
+  description         String?
+  
+  createdAt           DateTime @default(now())
+  members             TeamMember[]
+  rituals             TeamRitual[]
+  sessions            TeamSession[]
+  achievements        TeamAchievement[]
+}
+
+model TeamMember {
+  id                  Int      @id @default(autoincrement())
+  teamId              Int
+  team                Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role                String   // leader, member
+  joinedAt            DateTime @default(now())
+  
+  @@unique([teamId, userId])
+}
+
+model TeamRitual {
+  id                  Int      @id @default(autoincrement())
+  teamId              Int
+  team                Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  name                String
+  description         String?
+  type                String
+  duration            Int
+  scheduleEnabled     Boolean  @default(false)
+  scheduleCron        String?
+  inviteCode          String?  @unique
+  
+  createdAt           DateTime @default(now())
+  sessions            TeamSession[]
+}
+
+model TeamSession {
+  id                  Int      @id @default(autoincrement())
+  teamId              Int
+  team                Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamRitualId        Int?
+  teamRitual          TeamRitual? @relation(fields: [teamRitualId], references: [id], onDelete: SetNull)
+  
+  startedAt           DateTime @default(now())
+  endedAt             DateTime?
+  plannedDuration     Int
+  
+  participants        TeamSessionParticipant[]
+}
+
+model TeamSessionParticipant {
+  id                  Int      @id @default(autoincrement())
+  teamSessionId       Int
+  teamSession         TeamSession @relation(fields: [teamSessionId], references: [id], onDelete: Cascade)
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  joinedAt            DateTime @default(now())
+  leftAt              DateTime?
+  completed           Boolean  @default(false)
+  
+  @@unique([teamSessionId, userId])
+}
+
+model BodyDoublingSession {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  maxParticipants     Int      @default(10)
+  
+  startedAt           DateTime @default(now())
+  endedAt             DateTime?
+  
+  participants        BodyDoublingParticipant[]
+  messages            BodyDoublingMessage[]
+}
+
+model BodyDoublingParticipant {
+  id                  Int      @id @default(autoincrement())
+  sessionId           Int
+  session             BodyDoublingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  status              String   // focusing, on_break, offline
+  currentActivity     String?
+  
+  joinedAt            DateTime @default(now())
+  lastActiveAt        DateTime @default(now())
+  
+  @@unique([sessionId, userId])
+}
+
+model BodyDoublingMessage {
+  id                  Int      @id @default(autoincrement())
+  sessionId           Int
+  session             BodyDoublingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  message             String
+  type                String   @default("chat") // chat, encouragement, system
+  
+  createdAt           DateTime @default(now())
+}
+
+model Achievement {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  description         String
+  icon                String
+  category            String   // streak, completion, time, health
+  triggerType         String   // session_count, streak_days, total_minutes
+  triggerValue        Int
+  
+  createdAt           DateTime @default(now())
+  userAchievements    UserAchievement[]
+  teamAchievements    TeamAchievement[]
+}
+
+model UserAchievement {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId       Int
+  achievement         Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  unlockedAt          DateTime @default(now())
+  
+  @@unique([userId, achievementId])
+}
+
+model TeamAchievement {
+  id                  Int      @id @default(autoincrement())
+  teamId              Int
+  team                Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  achievementId       Int
+  achievement         Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  unlockedAt          DateTime @default(now())
+  
+  @@unique([teamId, achievementId])
+}
+
+model AuditLog {
+  id                  Int      @id @default(autoincrement())
+  userId              Int?
+  user                User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action              String   // login, create_ritual, delete_ritual, update_subscription, etc.
+  entityType          String?  // ritual, session, subscription, etc.
+  entityId            Int?
+  details             String?  // JSON string
+  ipAddress           String?
+  userAgent           String?
+  
+  createdAt           DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model CalendarIntegration {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  provider            String   // google, outlook, apple
+  accessToken         String
+  refreshToken        String?
+  expiresAt           DateTime?
+  
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+}
+
+model Artist {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  email               String   @unique
+  bio                 String?
+  
+  payoutEmail         String?
+  payoutAccount       String?  // Stripe Connect account ID
+  commissionRate      Int      @default(50) // percentage
+  
+  createdAt           DateTime @default(now())
+  payouts             ArtistPayout[]
+}
+
+model ArtistPayout {
+  id                  Int      @id @default(autoincrement())
+  artistId            Int
+  artist              Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  
+  amount              Int      // in cents
+  period              String   // e.g., "2024-01"
+  status              String   // pending, processing, completed, failed
+  stripeTransferId    String?
+  
+  createdAt           DateTime @default(now())
+  processedAt         DateTime?
+}
